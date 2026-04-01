@@ -1,0 +1,74 @@
+{
+  "name": "parazettel",
+  "displayName": "Parazettel — Zettelkasten + GTD/PARA",
+  "version": "0.4.0",
+  "description": "Complete knowledge management and task system combining Zettelkasten (atomic notes + semantic links) with GTD and PARA workflows. Includes MCP server and Claude Code plugin with automatic insight extraction.",
+  "author": "Bailey King",
+  "license": "MIT",
+  "keywords": [
+    "zettelkasten",
+    "knowledge-management",
+    "gtd",
+    "para",
+    "task-management",
+    "mcp",
+    "notes",
+    "pkm"
+  ],
+  "category": "productivity",
+  "mcp": {
+    "server": "parazettel",
+    "tools": 26,
+    "description": "Zettelkasten knowledge base with note creation, semantic linking, search, and task management"
+  },
+  "plugin": {
+    "id": "parazettel-helper",
+    "skills": [
+      "pzk-personal-note",
+      "pzk-meeting",
+      "pzk-training",
+      "pzk-chat-session"
+    ],
+    "agents": [
+      "extractor",
+      "meeting-extractor"
+    ],
+    "hooks": [
+      "PreCompact",
+      "PostCompact"
+    ]
+  },
+  "features": [
+    "Atomic notes with timestamp-based IDs",
+    "Typed semantic links (supports, extends, contradicts, etc.)",
+    "Full-text search across notes",
+    "Graph operations (similar notes, central notes, orphans)",
+    "GTD task management with priorities and contexts",
+    "PARA projects and areas",
+    "Automatic insight extraction from conversations",
+    "Meeting transcript processing",
+    "Training material atomization"
+  ],
+  "requirements": {
+    "python": ">=3.13",
+    "claudeCode": ">=1.0.0"
+  },
+  "installation": {
+    "quickstart": "QUICKSTART.md",
+    "detailed": "INSTALL.md"
+  },
+  "documentation": {
+    "readme": "README.md",
+    "plugin": "parazettel-helper/README.md",
+    "mcpTesting": "docs/mcp-testing-guide.md",
+    "paraGtd": "docs/para-gtd-guide.md"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BDKingDev/bdking-claude-plugins"
+  },
+  "homepage": "https://github.com/BDKingDev/bdking-claude-plugins",
+  "bugs": {
+    "url": "https://github.com/BDKingDev/bdking-claude-plugins/issues"
+  }
+}

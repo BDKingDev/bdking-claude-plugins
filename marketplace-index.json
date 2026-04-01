@@ -1,0 +1,78 @@
+{
+  "marketplaceName": "Bailey's Claude Code Marketplace",
+  "version": "1.0.0",
+  "description": "Personal collection of Claude Code plugins and MCP servers for knowledge management and development workflows",
+  "author": "Bailey King",
+  "homepage": "https://github.com/BDKingDev/bdking-claude-plugins",
+  "lastUpdated": "2026-03-31",
+  "packages": [
+    {
+      "id": "parazettel",
+      "name": "Parazettel",
+      "displayName": "Parazettel — Zettelkasten + GTD/PARA",
+      "version": "0.4.0",
+      "description": "Complete knowledge management and task system combining Zettelkasten (atomic notes + semantic links) with GTD and PARA workflows",
+      "author": "Bailey King",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": [
+        "zettelkasten",
+        "knowledge-management",
+        "gtd",
+        "para",
+        "task-management",
+        "mcp",
+        "notes",
+        "pkm"
+      ],
+      "path": "packages/parazettel",
+      "readme": "packages/parazettel/README.md",
+      "quickstart": "packages/parazettel/QUICKSTART.md",
+      "metadata": "packages/parazettel/marketplace.json",
+      "type": "mcp-server-with-plugin",
+      "mcp": {
+        "server": "parazettel",
+        "tools": 26
+      },
+      "plugin": {
+        "id": "parazettel-helper",
+        "skills": 4,
+        "agents": 2,
+        "hooks": 2
+      },
+      "requirements": {
+        "python": ">=3.13",
+        "claudeCode": ">=1.0.0"
+      },
+      "features": [
+        "26 MCP tools for notes, tasks, projects, areas",
+        "Automatic insight extraction from conversations",
+        "Meeting and transcript processing",
+        "Semantic linking and graph operations",
+        "Full GTD/PARA workflow support",
+        "Status-based note lifecycle",
+        "Recurring tasks",
+        "PreCompact and PostCompact hooks"
+      ],
+      "published": "2026-03-31",
+      "lastUpdated": "2026-03-31"
+    }
+  ],
+  "categories": [
+    {
+      "id": "productivity",
+      "name": "Productivity",
+      "description": "Task management, note-taking, and workflow automation"
+    },
+    {
+      "id": "development",
+      "name": "Development",
+      "description": "Development tools, code analysis, and CI/CD integration"
+    },
+    {
+      "id": "knowledge",
+      "name": "Knowledge Management",
+      "description": "Note-taking systems, PKM tools, and knowledge graphs"
+    }
+  ]
+}

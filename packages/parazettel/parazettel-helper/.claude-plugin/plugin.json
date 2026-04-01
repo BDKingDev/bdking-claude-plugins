@@ -1,0 +1,5 @@
+{
+  "name": "parazettel-helper",
+  "version": "0.2.0",
+  "description": "Convert transcripts, meeting notes, and training videos into atomic Zettelkasten notes with PARA/GTD task management. Captures ideas and action items from coding conversations."
+}

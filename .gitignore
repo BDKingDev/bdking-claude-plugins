@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
+dist/
+build/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.bak
+temp/
+
+# Package-specific
+packages/*/data/db/*.db
+packages/*/data/db/*.db-wal
+packages/*/data/db/*.db-shm
+packages/*/data/notes/*.md
+
+# Local configuration
+*.local.json
+.env
+.env.local

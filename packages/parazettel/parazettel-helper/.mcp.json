@@ -1,0 +1,12 @@
+{
+  "parazettel": {
+    "command": "${PARAZETTEL_VENV_PYTHON}",
+    "args": ["-m", "parazettel_mcp.main"],
+    "env": {
+      "PARAZETTEL_NOTES_DIR": "${PARAZETTEL_NOTES_DIR}",
+      "PARAZETTEL_DATABASE_PATH": "${PARAZETTEL_DATABASE_PATH}",
+      "PARAZETTEL_LOG_LEVEL": "${PARAZETTEL_LOG_LEVEL}",
+      "PYTHONUNBUFFERED": "1"
+    }
+  }
+}

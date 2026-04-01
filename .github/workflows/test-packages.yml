@@ -1,0 +1,85 @@
+name: Test Packages
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-parazettel:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.13']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install uv
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+    - name: Install parazettel dependencies
+      working-directory: packages/parazettel
+      run: |
+        uv venv
+        source .venv/bin/activate
+        uv sync --extra dev
+
+    - name: Run parazettel tests
+      working-directory: packages/parazettel
+      run: |
+        source .venv/bin/activate
+        python -m pytest tests/ -v --tb=short
+
+    - name: Test MCP server import
+      working-directory: packages/parazettel
+      run: |
+        source .venv/bin/activate
+        python -c "from parazettel_mcp.main import main; print('MCP server import successful')"
+
+    - name: Verify plugin structure
+      working-directory: packages/parazettel
+      run: |
+        test -f parazettel-helper/.claude-plugin/plugin.json || exit 1
+        test -f parazettel-helper/hooks/hooks.json || exit 1
+        test -d parazettel-helper/skills || exit 1
+        echo "Plugin structure verified"
+
+  validate-marketplace:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Validate marketplace-index.json
+      run: |
+        python -c "import json; json.load(open('marketplace-index.json'))"
+        echo "marketplace-index.json is valid JSON"
+
+    - name: Validate package metadata
+      run: |
+        for pkg in packages/*/marketplace.json; do
+          echo "Validating $pkg"
+          python -c "import json; json.load(open('$pkg'))"
+        done
+        echo "All package metadata files are valid"
+
+    - name: Check required files
+      run: |
+        for pkg_dir in packages/*/; do
+          pkg=$(basename "$pkg_dir")
+          echo "Checking $pkg"
+          test -f "packages/$pkg/README.md" || { echo "Missing README.md"; exit 1; }
+          test -f "packages/$pkg/QUICKSTART.md" || { echo "Missing QUICKSTART.md"; exit 1; }
+          test -f "packages/$pkg/marketplace.json" || { echo "Missing marketplace.json"; exit 1; }
+          test -f "packages/$pkg/LICENSE" || { echo "Missing LICENSE"; exit 1; }
+        done
+        echo "All required files present"
