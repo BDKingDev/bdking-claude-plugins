@@ -4,7 +4,11 @@ import datetime
 import json
 import logging
 import os
+import re
+import sqlite3
 import threading
+import time
+import uuid
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
@@ -41,6 +45,9 @@ logger = logging.getLogger(__name__)
 _NOTE_CACHE: OrderedDict = OrderedDict()
 _NOTE_CACHE_LOCK = threading.Lock()
 _NOTE_CACHE_MAX = 256
+_ATOMIC_WRITE_ATTEMPTS = 5
+_ATOMIC_WRITE_BACKOFF_SECONDS = 0.05
+_RETRYABLE_ATOMIC_WRITE_WINERRORS = {5, 32}
 
 
 def _cache_get(path_str: str, mtime_ns: int) -> Optional[Note]:
@@ -77,6 +84,39 @@ def _json_default(obj: Any) -> Any:
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
+def _normalize_wiki_target(target: str) -> str:
+    """Return the note id portion of an Obsidian wiki-link target."""
+    target = target.strip()
+    target = target.split("|", 1)[0].strip()
+    target = target.split("#", 1)[0].strip()
+    if target.endswith(".md"):
+        target = target[: -len(".md")]
+    return target
+
+
+_LEADING_H1_RE = re.compile(r"^\s*#\s+.*$")
+
+
+def _coerce_datetime(value: Any, fallback: datetime.datetime) -> datetime.datetime:
+    """Accept YAML-parsed datetimes/dates as well as ISO timestamp strings."""
+    if value is None or value == "":
+        return fallback
+    if isinstance(value, datetime.datetime):
+        return value
+    if isinstance(value, datetime.date):
+        return datetime.datetime.combine(value, datetime.time.min)
+    return datetime.datetime.fromisoformat(str(value))
+
+
+def _is_retryable_atomic_write_error(exc: OSError) -> bool:
+    """Return True when a transient Windows file lock may clear on retry."""
+    if isinstance(exc, PermissionError):
+        return True
+    if exc.errno == 13:
+        return True
+    return getattr(exc, "winerror", None) in _RETRYABLE_ATOMIC_WRITE_WINERRORS
+
+
 class NoteRepository(Repository[Note]):
     """Repository for note storage and retrieval.
     This implements a dual storage approach:
@@ -102,9 +142,47 @@ class NoteRepository(Repository[Note]):
 
         # File access lock
         self.file_lock = threading.RLock()
+        self.last_rebuild_backup_path: Optional[Path] = None
 
         # Initialize by rebuilding index if needed
         self.rebuild_index_if_needed()
+
+    def close(self) -> None:
+        """Release database resources held by this repository."""
+        self.engine.dispose()
+
+    def _build_tmp_path(self, file_path: Path) -> Path:
+        """Return a collision-resistant temp file path next to the target note."""
+        suffix = f".{os.getpid()}.{threading.get_ident()}.{uuid.uuid4().hex}.tmp"
+        return file_path.with_name(f"{file_path.name}{suffix}")
+
+    def _write_markdown_atomically(self, file_path: Path, markdown: str) -> None:
+        """Write markdown via temp file + replace, retrying transient Windows locks."""
+        last_error: Optional[OSError] = None
+        for attempt in range(_ATOMIC_WRITE_ATTEMPTS):
+            tmp_path = self._build_tmp_path(file_path)
+            try:
+                with self.file_lock:
+                    with open(tmp_path, "w", encoding="utf-8") as f:
+                        f.write(markdown)
+                    tmp_path.replace(file_path)
+                return
+            except OSError as e:
+                last_error = e
+                try:
+                    if tmp_path.exists():
+                        tmp_path.unlink()
+                except OSError:
+                    pass
+                if (
+                    attempt == _ATOMIC_WRITE_ATTEMPTS - 1
+                    or not _is_retryable_atomic_write_error(e)
+                ):
+                    break
+                time.sleep(_ATOMIC_WRITE_BACKOFF_SECONDS * (2**attempt))
+
+        assert last_error is not None
+        raise IOError(f"Failed to write note to {file_path}: {last_error}") from last_error
 
     def rebuild_index_if_needed(self) -> None:
         """Rebuild the database index from files if needed."""
@@ -118,8 +196,34 @@ class NoteRepository(Repository[Note]):
         if db_ids != file_stems:
             self.rebuild_index()
 
+    def _create_database_backup(self) -> Optional[Path]:
+        """Create a SQLite database backup before destructive reindexing."""
+        db_path = config.get_absolute_path(config.database_path)
+        if not db_path.exists():
+            return None
+
+        timestamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
+        backup_path = db_path.with_name(f"{db_path.name}.{timestamp}.bak")
+        counter = 1
+        while backup_path.exists():
+            backup_path = db_path.with_name(f"{db_path.name}.{timestamp}.{counter}.bak")
+            counter += 1
+
+        source = sqlite3.connect(str(db_path))
+        backup = sqlite3.connect(str(backup_path))
+        try:
+            source.backup(backup)
+        finally:
+            backup.close()
+            source.close()
+
+        logger.info("Created database backup before reindex: %s", backup_path)
+        return backup_path
+
     def rebuild_index(self) -> None:
         """Rebuild the database index from all markdown files."""
+        self.last_rebuild_backup_path = self._create_database_backup()
+
         # Clear the database first
         with self.session_factory() as session:
             # Delete all records from link table
@@ -222,7 +326,8 @@ class NoteRepository(Repository[Note]):
                             link_type_str = link_type_str[2:].strip()
                         # Extract target ID and description
                         id_and_description = parts[1].split("]]", 1)
-                        target_id = id_and_description[0].strip()
+                        raw_target = id_and_description[0].strip()
+                        target_id = _normalize_wiki_target(raw_target)
                         description = None
                         if len(id_and_description) > 1:
                             description = id_and_description[1].strip()
@@ -245,16 +350,8 @@ class NoteRepository(Repository[Note]):
                     logger.error(f"Error parsing link: {line} - {e}")
 
         # Extract timestamps
-        created_str = metadata.get("created")
-        created_at = (
-            datetime.datetime.fromisoformat(created_str)
-            if created_str
-            else datetime.datetime.now()
-        )
-        updated_str = metadata.get("updated")
-        updated_at = (
-            datetime.datetime.fromisoformat(updated_str) if updated_str else created_at
-        )
+        created_at = _coerce_datetime(metadata.get("created"), datetime.datetime.now())
+        updated_at = _coerce_datetime(metadata.get("updated"), created_at)
 
         # Extract action-item fields (strip from metadata so they don't double-store)
         _action_keys = {
@@ -458,17 +555,10 @@ class NoteRepository(Repository[Note]):
         # Add any custom metadata
         metadata.update(note.metadata)
 
-        # Check if content already starts with the title
-        title_heading = f"# {note.title}"
-        if note.content.strip().startswith(title_heading):
-            content = note.content
-        else:
-            content = f"{title_heading}\n\n{note.content}"
-
         # Remove existing Links section(s)
         content_parts = []
         skip_section = False
-        for line in content.split("\n"):
+        for line in note.content.split("\n"):
             if line.strip() == "## Links":
                 skip_section = True
                 continue
@@ -480,6 +570,7 @@ class NoteRepository(Repository[Note]):
 
         # Reconstruct the content without the Links sections
         content = "\n".join(content_parts).rstrip()
+        content = self._ensure_title_heading(content, note.title)
 
         # Add links section (with deduplication)
         if note.links:
@@ -487,14 +578,63 @@ class NoteRepository(Repository[Note]):
             for link in note.links:
                 key = f"{link.target_id}:{link.link_type.value}"
                 unique_links[key] = link
+            title_map = self._get_link_title_map(note, list(unique_links.values()))
             content += "\n\n## Links\n"
             for link in unique_links.values():
                 desc = f" {link.description}" if link.description else ""
-                content += f"- {link.link_type.value} [[{link.target_id}]]{desc}\n"
+                target_ref = self._format_wiki_link_target(link.target_id, title_map)
+                content += f"- {link.link_type.value} [[{target_ref}]]{desc}\n"
 
         # Create markdown with frontmatter
         post = frontmatter.Post(content, **metadata)
         return frontmatter.dumps(post)
+
+    def _ensure_title_heading(self, content: str, title: str) -> str:
+        """Keep the first meaningful line aligned with the note title."""
+        heading = f"# {title}"
+        if not content.strip():
+            return heading
+
+        lines = content.split("\n")
+        first_meaningful = next((i for i, line in enumerate(lines) if line.strip()), None)
+        if first_meaningful is None:
+            return heading
+
+        if _LEADING_H1_RE.match(lines[first_meaningful]):
+            lines[first_meaningful] = heading
+            return "\n".join(lines).strip()
+
+        body = "\n".join(lines).strip()
+        return f"{heading}\n\n{body}" if body else heading
+
+    def _get_link_title_map(self, note: Note, links: List[Link]) -> Dict[str, str]:
+        """Resolve link target titles in one query for markdown serialization."""
+        target_ids = {link.target_id for link in links}
+        if not target_ids:
+            return {}
+
+        with self.session_factory() as session:
+            rows = session.execute(
+                select(DBNote.id, DBNote.title).where(DBNote.id.in_(target_ids))
+            ).all()
+
+        title_map = {note_id: title for note_id, title in rows}
+        if note.id in target_ids:
+            title_map[note.id] = note.title
+        return title_map
+
+    def _format_wiki_link_target(
+        self, target_id: str, title_map: Dict[str, str]
+    ) -> str:
+        """Render a wiki-link target with a safe alias when possible."""
+        title = title_map.get(target_id)
+        if not title:
+            return target_id
+
+        alias = " ".join(title.splitlines()).strip()
+        if not alias or alias == target_id or "|" in alias or "]]" in alias:
+            return target_id
+        return f"{target_id}|{alias}"
 
     def _note_from_db(self, db_note: DBNote) -> Note:
         """Reconstruct a Note purely from DB rows — no file read required.
@@ -551,22 +691,8 @@ class NoteRepository(Repository[Note]):
         # Convert note to markdown
         markdown = self._note_to_markdown(note)
 
-        # Write to file atomically (temp + rename prevents partial writes on crash)
         file_path = self.notes_dir / f"{note.id}.md"
-        tmp_path = file_path.with_suffix(".md.tmp")
-        try:
-            with self.file_lock:
-                with open(tmp_path, "w", encoding="utf-8") as f:
-                    f.write(markdown)
-                tmp_path.replace(file_path)
-        except IOError as e:
-            raise IOError(f"Failed to write note to {file_path}: {e}") from e
-        finally:
-            if tmp_path.exists():
-                try:
-                    tmp_path.unlink()
-                except OSError:
-                    pass
+        self._write_markdown_atomically(file_path, markdown)
 
         # Index in database — pass rendered body so DB content matches file
         rendered_body = frontmatter.loads(markdown).content
@@ -624,33 +750,79 @@ class NoteRepository(Repository[Note]):
 
     def update(self, note: Note) -> Note:
         """Update a note."""
+        return self._update_note(note)
+
+    def update_preserving_updated_at(
+        self,
+        note: Note,
+        *,
+        existing_note: Note,
+        existing_links_source: Optional[Note] = None,
+    ) -> Note:
+        """Rewrite derived markdown while keeping stable timestamps."""
+        return self._update_note(
+            note,
+            preserve_updated_at=True,
+            existing_note=existing_note,
+            existing_links_source=existing_links_source,
+        )
+
+    def _preserve_link_created_at(self, note: Note, existing_note: Note) -> None:
+        """Carry DB-backed link creation timestamps onto rewritten file-backed notes."""
+        exact_timestamps = {
+            (link.target_id, link.link_type, link.description): link.created_at
+            for link in existing_note.links
+        }
+        fallback_timestamps = {
+            (link.target_id, link.link_type): link.created_at
+            for link in existing_note.links
+        }
+
+        preserved_links = []
+        for link in note.links:
+            created_at = exact_timestamps.get(
+                (link.target_id, link.link_type, link.description)
+            )
+            if created_at is None:
+                created_at = fallback_timestamps.get((link.target_id, link.link_type))
+
+            if created_at is None or created_at == link.created_at:
+                preserved_links.append(link)
+                continue
+
+            preserved_links.append(link.model_copy(update={"created_at": created_at}))
+
+        note.links = preserved_links
+
+    def _update_note(
+        self,
+        note: Note,
+        *,
+        preserve_updated_at: bool = False,
+        existing_note: Optional[Note] = None,
+        existing_links_source: Optional[Note] = None,
+    ) -> Note:
+        """Update a note."""
         # Check if note exists
-        existing_note = self.get(note.id)
+        if existing_note is None:
+            existing_note = self.get(note.id)
         if not existing_note:
             raise ValueError(f"Note with ID {note.id} does not exist")
 
-        # Update timestamp
-        note.updated_at = datetime.datetime.now()
+        # Update timestamp unless the caller is only refreshing derived markdown.
+        if preserve_updated_at:
+            note.updated_at = existing_note.updated_at
+            self._preserve_link_created_at(
+                note, existing_links_source or existing_note
+            )
+        else:
+            note.updated_at = datetime.datetime.now()
 
         # Convert note to markdown
         markdown = self._note_to_markdown(note)
 
-        # Write to file atomically (temp + rename prevents partial writes on crash)
         file_path = self.notes_dir / f"{note.id}.md"
-        tmp_path = file_path.with_suffix(".md.tmp")
-        try:
-            with self.file_lock:
-                with open(tmp_path, "w", encoding="utf-8") as f:
-                    f.write(markdown)
-                tmp_path.replace(file_path)
-        except IOError as e:
-            raise IOError(f"Failed to write note to {file_path}: {e}") from e
-        finally:
-            if tmp_path.exists():
-                try:
-                    tmp_path.unlink()
-                except OSError:
-                    pass
+        self._write_markdown_atomically(file_path, markdown)
 
         _cache_evict(str(file_path))
         rendered_body = frontmatter.loads(markdown).content
@@ -744,8 +916,16 @@ class NoteRepository(Repository[Note]):
         # so their markdown files stay consistent with the DB.
         source_notes = self.find_linked_notes(id, "incoming")
         for source_note in source_notes:
-            source_note.remove_link(id)
-            self.update(source_note)
+            file_backed_source = self.get(source_note.id)
+            if not file_backed_source:
+                continue
+            existing_source = file_backed_source.model_copy(deep=True)
+            file_backed_source.remove_link(id)
+            self.update_preserving_updated_at(
+                file_backed_source,
+                existing_note=existing_source,
+                existing_links_source=source_note,
+            )
 
         # Delete from database
         with self.session_factory() as session:
