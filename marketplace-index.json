@@ -32,7 +32,7 @@
       "type": "mcp-server-with-plugin",
       "mcp": {
         "server": "parazettel",
-        "tools": 26
+        "tools": 30
       },
       "plugin": {
         "id": "parazettel-helper",
@@ -45,7 +45,7 @@
         "claudeCode": ">=1.0.0"
       },
       "features": [
-        "26 MCP tools for notes, tasks, projects, areas",
+        "30 MCP tools for notes, tasks, projects, areas, subprojects, and routed project context",
         "Automatic insight extraction from conversations",
         "Meeting and transcript processing",
         "Semantic linking and graph operations",

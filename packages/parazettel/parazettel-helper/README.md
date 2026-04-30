@@ -88,11 +88,33 @@ All notes remain with `status='inbox'` for human triage and promotion.
 VERBOSE=1  # Writes both phase outputs to /tmp/post-compact-{ingest,linking}-{PID}.log
 ```
 
-## Available Tools (26 total)
+## Available Tools (30 total)
 
 ### Knowledge management
 
-`pzk_create_note`, `pzk_get_note`, `pzk_update_note`, `pzk_delete_note`, `pzk_create_link`, `pzk_remove_link`, `pzk_search_notes`, `pzk_get_linked_notes`, `pzk_get_all_tags`, `pzk_find_similar_notes`, `pzk_find_central_notes`, `pzk_find_orphaned_notes`, `pzk_list_notes_by_date`, `pzk_rebuild_index`
+`pzk_create_note`, `pzk_get_note`, `pzk_get_notes`, `pzk_get_notes_by_tag`, `pzk_update_note`, `pzk_delete_note`, `pzk_create_link`, `pzk_remove_link`, `pzk_search_notes`, `pzk_get_linked_notes`, `pzk_get_all_tags`, `pzk_find_similar_notes`, `pzk_find_central_notes`, `pzk_find_orphaned_notes`, `pzk_list_notes_by_date`, `pzk_rebuild_index`
+
+#### Effective use of `pzk_search_notes`
+
+The tool combines two mechanisms: `tags`/`area_id` for pre-filtering, and `query` for scoring. Understanding the semantics prevents broad, noisy results:
+
+- **`tags`** uses SQL `IN` — **OR semantics**. Notes matching *any* of the listed tags are included. Use a single specific service/domain tag (`og`, `pine`, `playwright`, `factories`) to scope the candidate set. Don't stack many tags expecting AND behaviour.
+- **`query`** uses additive OR scoring per word. More terms means more noise. Use **1–2 highly specific words** that would only appear in notes about the target topic.
+- **`area_id`** is the strongest domain filter — use it instead of tags when you want all notes in a domain (e.g. all QA Engineering notes).
+- **`limit`**: 50 is the sweet spot — enough to be confident you haven't missed anything, not overwhelming to scan.
+
+**Good pattern:**
+
+```python
+pzk_search_notes(query="ccpa reuse", tags="og", limit=50)
+```
+
+**Bad pattern:**
+
+```python
+pzk_search_notes(query="signup email deleted reuse ccpa users og")
+# OR scoring on every term — returns everything loosely related
+```
 
 ### Task management
 
@@ -100,7 +122,7 @@ VERBOSE=1  # Writes both phase outputs to /tmp/post-compact-{ingest,linking}-{PI
 
 ### Project and area management
 
-`pzk_create_project`, `pzk_get_project`, `pzk_get_project_tasks`, `pzk_list_projects`, `pzk_create_area`, `pzk_get_area`, `pzk_list_areas`
+`pzk_create_project`, `pzk_create_subproject`, `pzk_get_project`, `pzk_get_project_notes`, `pzk_get_project_tasks`, `pzk_list_projects`, `pzk_create_area`, `pzk_get_area`, `pzk_list_areas`
 
 ## Note Types
 

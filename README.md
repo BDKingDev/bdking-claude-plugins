@@ -9,7 +9,7 @@ A personal collection of Claude Code plugins and MCP servers for knowledge manag
 Complete knowledge management and task system combining Zettelkasten (atomic notes + semantic links) with GTD and PARA workflows.
 
 **Features:**
-- 26 MCP tools for notes, tasks, projects, and areas
+- 30 MCP tools for notes, tasks, projects, areas, subprojects, and routed project context
 - Automatic insight extraction from conversations
 - Meeting and transcript processing
 - Semantic linking and graph operations

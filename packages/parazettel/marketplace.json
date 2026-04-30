@@ -7,6 +7,7 @@
   "license": "MIT",
   "keywords": [
     "zettelkasten",
+    "parazettel",
     "knowledge-management",
     "gtd",
     "para",
@@ -18,7 +19,7 @@
   "category": "productivity",
   "mcp": {
     "server": "parazettel",
-    "tools": 26,
+    "tools": 30,
     "description": "Zettelkasten knowledge base with note creation, semantic linking, search, and task management"
   },
   "plugin": {

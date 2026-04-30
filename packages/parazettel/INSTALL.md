@@ -255,9 +255,11 @@ You should see:
 
 ```
 Available MCP servers:
-  parazettel (26 tools)
+  parazettel (30 tools)
     - pzk_create_note
     - pzk_get_note
+    - pzk_get_notes
+    - pzk_get_notes_by_tag
     - pzk_update_note
     - pzk_delete_note
     ...
