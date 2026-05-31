@@ -1,0 +1,21 @@
+{
+  "name": "bdking-claude-plugins",
+  "owner": {
+    "name": "Bailey King"
+  },
+  "metadata": {
+    "description": "Personal collection of Claude Code plugins and MCP servers for knowledge management and development workflows",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "parazettel-helper",
+      "source": "./packages/parazettel/parazettel-helper",
+      "description": "Convert transcripts, meeting notes, and training videos into atomic Zettelkasten notes with PARA/GTD task management. Captures ideas and action items from coding conversations.",
+      "version": "0.2.0",
+      "author": {
+        "name": "Bailey King"
+      }
+    }
+  ]
+}
