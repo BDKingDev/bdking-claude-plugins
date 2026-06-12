@@ -39,16 +39,18 @@ Review the current conversation and create fleeting notes for knowledge insights
 2. **Draft candidates** — for each idea, draft:
    - A claim-shaped title (not a topic bucket)
    - A 1–2 sentence body close to how the idea was expressed in the conversation
-   - Relevant tags: `chat-capture` always, plus 1–2 topic tags (e.g., `architecture`, `debugging`, `performance`)
+   - Relevant tags: `chat-capture` always, plus 1–2 topic tags REUSED from `pzk_get_all_tags` (fetch once per session; mint a new tag only when the concept is genuinely absent — see [tagging.md](../../references/tagging.md))
    - Type: `knowledge` (fleeting note) or `action-item` (task)
 
-3. **Dedup check** — for each candidate, run `pzk_find_similar_notes` if a very close note seems likely to exist. Skip or merge if the vault already has this idea in equal or stronger form.
+3. **Pre-create check** — for each candidate, run `pzk_search_notes` (now hybrid lexical+semantic) on its claim text. (Candidates have no ID yet, so `pzk_find_similar_notes` can't run on them pre-create.) Read the top score as a signal, not a verdict: **low usually means novel → keep** (but see the recall caveat in the audit step); a **strong, on-claim match = skip or merge — after opening it to confirm it's the same atomic claim, not just the same topic** (dense clusters score distinct atoms high); a **moderate, loosely-related match = keep and link, not merge**. `pzk_create_note`'s own dedup confirm catches true paraphrase duplicates. Query with the **full claim**, not a terse keyword — phrasing strongly affects recall; with embeddings on, `pzk_find_similar_to_text` runs this semantic check on the draft text directly (calibrated cosine).
 
 4. **Create items:**
    - Knowledge insights → `pzk_create_note` with `note_type="fleeting"` — lightweight capture for user review
    - Action items → `pzk_create_task` with `source="chat"`, `status="inbox"` — requires project resolution (see [project-resolution.md](../../references/project-resolution.md))
 
-5. **Report and offer promotion** — present the created items as a numbered list (title + ID), grouped by type. Then ask:
+5. **Post-create audit** — run `pzk_find_similar_notes` on each note you just created, then two passes over the neighbours: (1) **links** — add 1–2 cross-vocabulary / cross-domain links the lexical check missed (`pzk_create_link`; link, don't fold); (2) **tension check** — if a close neighbour *conflicts* with the new note (opposing claim, competing recommendation, contradicting condition), reconcile rather than ignore: link `contradicts` (reciprocal `contradicted_by` is auto-added) or `refines`, or `pzk_update_note` to add the resolving condition, and flag it in the report. Embeddings augment domain memory, not replace it — a low/empty result doesn't prove novelty; if you recall an obviously-relevant note that didn't surface, link it manually.
+
+6. **Report and offer promotion** — present the created items as a numbered list (title + ID), grouped by type. Then ask:
 
    > "Would you like to promote any fleeting notes to permanent notes? If so, which ones? I can refine the title, strengthen the body, and reclassify them now."
 

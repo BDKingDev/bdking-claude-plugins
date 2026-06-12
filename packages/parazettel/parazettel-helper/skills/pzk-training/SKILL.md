@@ -52,25 +52,28 @@ Training transcripts yield four categories of permanent notes plus action items:
 
 5. **Route action items** — candidates typed as `action-item` go to `pzk_create_task` with `source="transcript"` and `status="someday"`. If a deadline is stated in the training, set `due_date`. Follow the project resolution flow in [project-resolution.md](../../references/project-resolution.md).
 
-6. **Graph comparison** — `pzk_search_notes` and `pzk_find_similar_notes` for each surviving knowledge candidate. If a procedure note already exists for a system, `pzk_update_note` to add new steps or correct outdated ones rather than creating a duplicate.
+6. **Pre-create comparison** — run `pzk_search_notes` (now hybrid lexical+semantic) on each surviving knowledge candidate's claim text. (Candidates have no ID yet, so `pzk_find_similar_notes` can't run on them pre-create.) If a procedure note already exists for a system, `pzk_update_note` to add new steps or correct outdated ones rather than duplicating — but confirm it's the same procedure/claim, not just the same topic (dense clusters score distinct atoms high); a loosely-related match → keep and link, not fold. Query with the **full claim**, not a terse keyword — phrasing strongly affects recall; with embeddings on, `pzk_find_similar_to_text` runs this semantic check on the draft text directly (calibrated cosine).
 
 7. **Create notes and links** — literature note first, then permanents. `pzk_create_link` immediately after each note. Tasks are created in step 5.
 
-8. **Structure note check** — `pzk_find_central_notes` for the system or service covered. Training content frequently warrants a structure note indexing all permanents about a given internal system. Create one if several permanents share a system and no index exists.
+8. **Post-create semantic audit** — run `pzk_find_similar_notes` on each note you just created, then two passes over the neighbours: (1) **links** — add 1–2 cross-vocabulary / cross-domain links the lexical pass missed (treat loosely-related hits as links, not folds); (2) **tension check** — if a close neighbour *conflicts* with the new note (a procedure that contradicts an existing one, a step the training supersedes), reconcile rather than ignore: link `contradicts` (reciprocal `contradicted_by` is auto-added) or `refines`, or `pzk_update_note` to correct/supersede the stale note, and flag it in the report. Embeddings augment domain memory, not replace it — a low/empty result doesn't prove novelty; if you recall an obviously-relevant note that didn't surface, link it manually.
 
-9. **Verify** — `pzk_get_linked_notes` to confirm links.
+9. **Structure note check** — `pzk_find_central_notes` for the system or service covered. Training content frequently warrants a structure note indexing all permanents about a given internal system. Create one if several permanents share a system and no index exists.
+
+10. **Verify** — `pzk_get_linked_notes` to confirm links.
 
 ## Tool Order
 
 Use tools in this order unless there is a clear reason not to:
 
 1. Draft and prune the local candidate set first (no MCP calls).
-2. `pzk_find_similar_notes` on each surviving candidate as the first-pass similarity sweep.
-3. `pzk_search_notes` for targeted duplicate checking.
-4. `pzk_get_note` when an existing note might need updating.
-5. `pzk_create_note` / `pzk_update_note` / `pzk_create_task` to create items.
+2. **Pre-create sweep** — `pzk_search_notes` (hybrid lexical+semantic) on each surviving candidate's claim text. Candidates have no ID yet, so `pzk_find_similar_notes` can't run on them. Low top score = novel → create; strong on-claim match = fold/update; loosely-related = link candidate, not fold.
+3. `pzk_get_note` when an existing note might need updating.
+4. `pzk_get_all_tags` once before tagging — reuse existing tags per [tagging.md](../../references/tagging.md); mint a new tag only when the concept is genuinely absent.
+5. `pzk_create_note` / `pzk_update_note` / `pzk_create_task` to create items (or `pzk_ingest_batch` for a large pre-deduped batch).
 6. `pzk_create_link` to connect source and derived notes immediately.
-7. `pzk_get_linked_notes` to verify the result.
+7. **Post-create audit** — `pzk_find_similar_notes` on each *newly created* note; add the cross-vocabulary links and tensions the lexical sweep missed.
+8. `pzk_get_linked_notes` to verify the result.
 
 ## Note Content Formats
 
