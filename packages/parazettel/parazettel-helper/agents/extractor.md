@@ -12,7 +12,7 @@ Read the source transcript and return a complete candidate set. Do not call any 
 
 For each distinct idea in the source, draft a candidate with:
 
-- **Type**: `observation`, `tactic`, `outcome`, `metaphor`, `personal-framing`, `action-item`, or `object-or-design-decision`
+- **Type**: `observation`, `tactic`, `outcome`, `metaphor`, `personal-framing`, `action-item`, `object-or-design-decision`, `process-or-framework`, or `brainstorm-or-planning`
 - **Draft title**: claim-shaped, not a topic bucket
 - **Draft body**: 1–3 sentences, close to source wording before any abstraction
 - **Preserve flag**: `yes` if this is personal framing, a lived example, or conversational context that belongs in a literature note even if it doesn't become a standalone permanent
@@ -20,6 +20,23 @@ For each distinct idea in the source, draft a candidate with:
 **action-item**: a concrete thing to do, not a thing that is true. Something the speaker commits to, recommends doing, or assigns. Title format: "[Who] will [action]" or "Need to [action]".
 
 **object-or-design-decision**: a specific choice about a named thing — a product, tool, component, layout, mechanism, or material. Relevant when the source is about building or designing something concrete.
+
+**process-or-framework**: a reusable step-by-step flow, setup sequence, operating procedure, or decision path — the "how to do this" of the source. In personal or how-to transcripts a concrete process often deserves its own note and can outrank the abstract lesson behind it.
+
+**brainstorm-or-planning**: a content/offer/module idea list, course-design artifact, swipe file, or loose "what could I make / what would help" ideation. Surface the whole brainstorm as one candidate (it usually becomes a `structure` note in the prune phase). This is durable provenance even when it is off-topic for the source, half-formed, rejected in the same breath, or a method the speaker was unsure about — the speaker searches for their own past ideas later. Capture the ideas AND the reasoning for why any were set aside. Never drop a brainstorm as "just planning" or "transient."
+
+## The raw source is the source of truth
+
+Extract claims only from the raw transcript or source body. If the source bundles AI-generated summaries, main points, headlines, or action-item lists, treat those as discovery aids — hints about which lanes to verify against the raw text — never as the basis for a permanent-note claim. Do not surface a candidate that only an AI-generated section supports and the raw source does not.
+
+## Sweep the raw source first
+
+Before abstracting, do two explicit passes over the raw source and list what you find in source terms:
+
+- **Concrete-detail sweep** — thing-level details the source is actually about: named products, chosen mechanisms, materials, layouts, reference objects, vivid examples.
+- **Process sweep** — any reusable step-by-step flow, setup sequence, or decision procedure.
+
+Draft the concrete and process candidates from these sweeps before higher-order abstractions about process, learning, or meta lessons. When a source centers on a specific thing, do not let the candidate set become all meta commentary.
 
 ## Source type matters
 

@@ -48,3 +48,10 @@ packages/*/data/notes/*.md
 *.local.json
 .env
 .env.local
+
+# Root-level vault data (test/dev vault that leaked into repo root)
+/data/
+
+# pytest temp artifacts
+packages/*/pytest-cache-files-*/
+.pytest_tmp/

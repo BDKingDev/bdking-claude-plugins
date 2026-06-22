@@ -8,7 +8,7 @@ When a skill needs to create tasks via `pzk_create_task`, every task requires a 
 2. **Match by context** — if the source (meeting topic, transcript subject, training module) clearly maps to a single project, use that project's ID for all tasks.
 3. **Group by project** — if multiple projects are relevant (e.g., a standup covers several workstreams), group action items by project before creating tasks.
 4. **Ask when ambiguous** — if no project matches or the mapping is unclear, present the user with the action items and ask which project to assign them to.
-5. **Offer to create** — if no existing project fits, offer to create a new one via `pzk_create_project`. Ask for an `area_id` (use `pzk_list_areas` to show options).
+5. **Offer to create** — if no existing project fits, offer to create a new one via `pzk_create_project`. Ask for an `area_id` (use `pzk_suggest_areas(text=<the project's topic>)` for the closest areas by meaning, or `pzk_list_areas` to show all).
 
 ## Rules
 

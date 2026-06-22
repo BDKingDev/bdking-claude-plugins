@@ -69,7 +69,7 @@ Use tools in this order unless there is a clear reason not to:
 1. Draft and prune the local candidate set first (no MCP calls).
 2. **Pre-create sweep** — `pzk_search_notes` (hybrid lexical+semantic) on each surviving candidate's claim text. Candidates have no ID yet, so `pzk_find_similar_notes` can't run on them. Low top score = novel → create; strong on-claim match = fold/update; loosely-related = link candidate, not fold.
 3. `pzk_get_note` when an existing note might need updating.
-4. `pzk_get_all_tags` once before tagging — reuse existing tags per [tagging.md](../../references/tagging.md); mint a new tag only when the concept is genuinely absent.
+4. `pzk_suggest_tags(text=<the note's claim>)` per note (or `pzk_get_all_tags` for the full list) before tagging — reuse existing tags per [tagging.md](../../references/tagging.md); mint a new tag only when the concept is genuinely absent.
 5. `pzk_create_note` / `pzk_update_note` / `pzk_create_task` to create items (or `pzk_ingest_batch` for large batches — leave its dedup gate on; it creates-and-flags possible duplicates, and every line of its "Duplicate review" section must be judged: same claim → fold, same topic → keep and link).
 6. `pzk_create_link` to connect source and derived notes immediately.
 7. **Post-create audit** — `pzk_find_similar_notes` on each *newly created* note; add the cross-vocabulary links and tensions the lexical sweep missed.

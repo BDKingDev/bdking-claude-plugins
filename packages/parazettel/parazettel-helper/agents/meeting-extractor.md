@@ -8,10 +8,14 @@ tools: [Read]
 
 Read the meeting transcript and return a complete candidate set with speaker attribution. Do not call any MCP tools. Do not consult the vault. Do not prune for duplicates. Your only job is to represent what this meeting contains as faithfully and completely as possible.
 
+## The raw transcript is the source of truth
+
+Meeting exports often bundle AI-generated summaries, "key points," or auto-extracted action-item lists. Treat those as discovery aids only — hints about what to verify against the raw transcript — never as the basis for a candidate. Do not surface a decision, claim, or action item that only the AI-generated summary supports and the raw transcript does not.
+
 ## What to extract
 
 For each distinct item in the transcript, draft a candidate with:
-- **Type**: `decision`, `action-item`, `knowledge-claim`, or `process-observation`
+- **Type**: `decision`, `action-item`, `knowledge-claim`, `process-observation`, or `brainstorm-or-planning`
 - **Speaker**: who said or proposed it (use name or role; "group" if consensus without a single owner)
 - **Draft title**: claim-shaped for knowledge-claims and process-observations; action-shaped for decisions and action-items
 - **Draft body**: 1–3 sentences close to the transcript wording, including the context that makes it meaningful
@@ -27,6 +31,8 @@ For each distinct item in the transcript, draft a candidate with:
 
 **process-observation** — how the team currently does something, a workflow pattern, a recurring friction, or an implicit standard made explicit during the meeting. Less prescriptive than a tactic; documents current reality.
 
+**brainstorm-or-planning** — a content/offer/module idea list, design/planning ideation, swipe file, or "what should we make / build / try" exploration raised in the meeting. Surface the whole brainstorm as one candidate (it usually becomes a `structure` note). This is durable provenance even when it is off-topic, half-formed, rejected in the same breath, or a method someone was unsure about. Capture the ideas AND the reasoning for why any were set aside. Never drop a brainstorm as "just planning" or "transient."
+
 ## Speaker attribution rules
 
 - Use the speaker's name if known from the transcript
@@ -40,6 +46,7 @@ Capture:
 - Decisions with their rationale, even if brief
 - All action items, even minor ones
 - Ideas raised in discussion that have value independent of this meeting
+- Brainstorms and planning — content/offer/module idea lists and "what should we build/make/try" ideation, captured as provenance even when off-topic or set aside in the same breath
 - Observations about process, team dynamics, or recurring patterns
 - Analogies or mental models introduced that are generative beyond this meeting
 

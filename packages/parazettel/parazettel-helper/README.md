@@ -88,33 +88,36 @@ All notes remain with `status='inbox'` for human triage and promotion.
 VERBOSE=1  # Writes both phase outputs to /tmp/post-compact-{ingest,linking}-{PID}.log
 ```
 
-## Available Tools (30 total)
+## Available Tools (33 total)
 
 ### Knowledge management
 
-`pzk_create_note`, `pzk_get_note`, `pzk_get_notes`, `pzk_get_notes_by_tag`, `pzk_update_note`, `pzk_delete_note`, `pzk_create_link`, `pzk_remove_link`, `pzk_search_notes`, `pzk_get_linked_notes`, `pzk_get_all_tags`, `pzk_find_similar_notes`, `pzk_find_central_notes`, `pzk_find_orphaned_notes`, `pzk_list_notes_by_date`, `pzk_rebuild_index`
+`pzk_create_note`, `pzk_get_note`, `pzk_get_notes`, `pzk_get_notes_by_tag`, `pzk_update_note`, `pzk_delete_note`, `pzk_create_link`, `pzk_remove_link`, `pzk_search_notes`, `pzk_get_linked_notes`, `pzk_get_all_tags`, `pzk_suggest_tags`, `pzk_find_similar_notes`, `pzk_find_central_notes`, `pzk_find_orphaned_notes`, `pzk_list_notes_by_date`, `pzk_rebuild_index`, `pzk_check_consistency`
 
 #### Effective use of `pzk_search_notes`
 
-The tool combines two mechanisms: `tags`/`area_id` for pre-filtering, and `query` for scoring. Understanding the semantics prevents broad, noisy results:
+A text `query` is ranked by the Kuzu full-text index's **BM25 relevance score** (the most relevant notes come first), and `tags`/`area_id` pre-filter the candidate set. Each result shows a `Relevance:` score and a `Match:` line — read them to judge hit quality:
 
-- **`tags`** uses SQL `IN` — **OR semantics**. Notes matching *any* of the listed tags are included. Use a single specific service/domain tag (`og`, `pine`, `playwright`, `factories`) to scope the candidate set. Don't stack many tags expecting AND behaviour.
-- **`query`** uses additive OR scoring per word. More terms means more noise. Use **1–2 highly specific words** that would only appear in notes about the target topic.
+- **`query`** is BM25-ranked, not a flat keyword pile. Extra terms refine relevance rather than uniformly adding noise, so a natural multi-word query works — but a tight, specific query still ranks the best matches highest. Use the `Relevance:` scores to decide whether you need a broader or narrower query.
+- **`tags`** uses **OR semantics** — notes matching *any* of the listed tags are included. Use a single specific service/domain tag (`og`, `pine`, `playwright`, `factories`) to scope the candidate set. Don't stack many tags expecting AND behaviour.
 - **`area_id`** is the strongest domain filter — use it instead of tags when you want all notes in a domain (e.g. all QA Engineering notes).
 - **`limit`**: 50 is the sweet spot — enough to be confident you haven't missed anything, not overwhelming to scan.
 
 **Good pattern:**
 
 ```python
-pzk_search_notes(query="ccpa reuse", tags="og", limit=50)
+pzk_search_notes(query="ccpa email reuse", tags="og", limit=50)
+# BM25 ranks the strongest matches first; check the Relevance: lines
 ```
 
-**Bad pattern:**
+#### Reusing tags (curb tag sprawl)
 
-```python
-pzk_search_notes(query="signup email deleted reuse ccpa users og")
-# OR scoring on every term — returns everything loosely related
-```
+Before inventing a new tag, call `pzk_suggest_tags(text=<the note's claim>)` for the closest existing tags by meaning (or `pzk_get_all_tags` for the full in-use list) and **prefer the closest existing tag** — only mint a new one when the concept is genuinely absent. This keeps the vocabulary from fragmenting into near-duplicate singletons.
+
+#### Maintenance
+
+- **`pzk_check_consistency`** — read-only audit that reports file-vs-index drift (notes missing from the index, indexed notes whose file is gone, content drift). Run it to decide *whether* a rebuild is needed.
+- **`pzk_rebuild_index`** — builds a fresh index and atomically swaps it in (backs up first, reports any unparseable files). Reconciles hand edits and clears orphaned tag nodes.
 
 ### Task management
 
@@ -122,7 +125,7 @@ pzk_search_notes(query="signup email deleted reuse ccpa users og")
 
 ### Project and area management
 
-`pzk_create_project`, `pzk_create_subproject`, `pzk_get_project`, `pzk_get_project_notes`, `pzk_get_project_tasks`, `pzk_list_projects`, `pzk_create_area`, `pzk_get_area`, `pzk_list_areas`
+`pzk_create_project`, `pzk_create_subproject`, `pzk_get_project`, `pzk_get_project_notes`, `pzk_get_project_tasks`, `pzk_list_projects`, `pzk_create_area`, `pzk_get_area`, `pzk_list_areas`, `pzk_suggest_areas`
 
 ## Note Types
 
